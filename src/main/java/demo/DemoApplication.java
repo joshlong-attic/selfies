@@ -1,7 +1,5 @@
 package demo;
 
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -10,13 +8,17 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.social.twitter.api.MediaEntity;
 import org.springframework.social.twitter.api.Tweet;
 import org.springframework.social.twitter.api.Twitter;
 import org.springframework.social.twitter.api.impl.TwitterTemplate;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -44,27 +46,33 @@ public class DemoApplication {
                 properties.getAccessTokenSecret());
     }
 
-    //    @Bean
+    Collection<Tweet> mediaTweets(Collection<Tweet> tweets) {
+
+        List<Tweet> tweetsWithMedia = tweets
+                .stream()
+                .filter(t -> t.getEntities().getMedia().size() > 0)
+                .collect(Collectors.<Tweet>toList());
+
+        tweetsWithMedia.forEach(t -> {
+            System.out.println(t.getUser().getName());
+            List<MediaEntity> media = t.getEntities().getMedia();
+            media.forEach(mediaEntity -> System.out.println(mediaEntity.getUrl()));
+        });
+
+        return tweetsWithMedia;
+    }
+
+    @Bean
     CommandLineRunner runner(Twitter twitter) {
         return args -> {
-            List<Tweet> tweets = twitter.timelineOperations()
-                    .getFavorites();
 
-            // show us what we're working w..
-            tweets.forEach(x -> System.out.println(ToStringBuilder.reflectionToString(x,
-                    ToStringStyle.MULTI_LINE_STYLE)));
+            Set<Tweet> tweets = new HashSet<>();
+            tweets.addAll((twitter.timelineOperations().getFavorites()));
+            tweets.addAll((twitter.timelineOperations().getMentions()));
 
-            Collection<Selfie> tweetsWithMedia = tweets.stream()
-                    .filter(t -> {
-                        // does it have a file attachment?
-                        return false;
-                    })
-                    .map(t -> {
-                        return new Selfie(null, Collections.emptySet());
-                    })
-                    .collect(Collectors.toSet());
 
-            tweetsWithMedia.forEach(System.out::println);
+            mediaTweets(tweets);
+
 
         };
     }
